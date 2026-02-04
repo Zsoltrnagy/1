@@ -214,6 +214,8 @@
         <button class="btn ghost" type="button" id="downloadBtn">Download HTML</button>
       </div>
 
+      <div class="muted" style="font-weight:900;margin-top:10px" id="buildTag"></div>
+
       <div class="badges">
         <div class="badge">60-second estimate</div>
         <div class="badge">Price-aware clients</div>
@@ -451,7 +453,8 @@
 
 <script>
 (function(){
-  // Default email (editable via footer)
+  // IMPORTANT: Avoid raw newlines inside JS strings. Use \n everywhere.
+
   var DEFAULT_ADMIN_EMAIL = "pricefirstnow@gmail.com";
   var ADMIN_EMAIL = localStorage.getItem("PFN_ADMIN_EMAIL") || DEFAULT_ADMIN_EMAIL;
 
@@ -535,9 +538,7 @@
     if(link){
       link.onclick = function(e){
         e.preventDefault();
-        openMailto("PriceFirstNow Inquiry", "Hello, I have a question about PriceFirstNow.
-
-My question: ");
+        openMailto("PriceFirstNow Inquiry", "Hello, I have a question about PriceFirstNow.\n\nMy question: ");
         return false;
       };
     }
@@ -633,6 +634,8 @@ My question: ");
     }
 
     var sel = $("service");
+    if(!sel) return;
+
     sel.innerHTML = "";
     var list = SERVICE_LIST[cat] || [];
     for(var j=0;j<list.length;j++){
@@ -725,7 +728,8 @@ My question: ");
       "difficult access": 1.14
     };
     var am = accessMult[stories] || 1.0;
-    low *= am; high *= am;
+    low *= am;
+    high *= am;
 
     var prepMult = {
       none: 1.00,
@@ -734,23 +738,28 @@ My question: ");
       "heavy (major repairs)": 1.22
     };
     var pm = prepMult[prep] || 1.0;
-    low *= pm; high *= pm;
+    low *= pm;
+    high *= pm;
 
     var levelMult = { Budget: 0.92, Standard: 1.00, Premium: 1.12, Luxury: 1.25 };
     var lm = levelMult[serviceLevel] || 1.0;
-    low *= lm; high *= lm;
+    low *= lm;
+    high *= lm;
 
     if(isFlooringSubtype()){
       var matMult = { Tile: 1.00, Wood: 1.12, "Natural stone": 1.35, Laminate: 0.85, Carpet: 0.80 };
       var mm = matMult[flooringMaterial] || 1.0;
-      low *= mm; high *= mm;
+      low *= mm;
+      high *= mm;
     }
 
     var cm = COUNTY_MULT[county] || 1.0;
-    low *= cm; high *= cm;
+    low *= cm;
+    high *= cm;
 
     var c = applyConfidenceBand(low, high);
-    low = c.lo; high = c.hi;
+    low = c.lo;
+    high = c.hi;
 
     return {
       low: low,
@@ -802,8 +811,8 @@ My question: ");
       xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
       xhr.onreadystatechange = function(){
         if(xhr.readyState === 4){
-          var ok = (xhr.status >= 200 && xhr.status < 400);
-          onDone(null, ok, xhr.status);
+          var ok2 = (xhr.status >= 200 && xhr.status < 400);
+          onDone(null, ok2, xhr.status);
         }
       };
       xhr.send(body);
@@ -822,14 +831,10 @@ My question: ");
       return;
     }
 
-    var body = "Provider application
-" +
-      "Name: " + name + "
-" +
-      "Company: " + company + "
-" +
-      "Email: " + email + "
-";
+    var body = "Provider application\n" +
+      "Name: " + name + "\n" +
+      "Company: " + company + "\n" +
+      "Email: " + email + "\n";
 
     openMailto("Provider Application", body);
   }
@@ -841,33 +846,37 @@ My question: ");
     }
   }
 
-  // --- Wire events safely ---
-  $("scrollQuoteBtn").addEventListener("click", function(){ scrollToId("#quote"); });
-  $("scrollProviderBtn").addEventListener("click", function(){ scrollToId("#providers"); });
+  function safeAdd(el, evt, fn){
+    if(el && el.addEventListener) el.addEventListener(evt, fn);
+  }
+
+  // Wire events safely
+  safeAdd($("scrollQuoteBtn"), "click", function(){ scrollToId("#quote"); });
+  safeAdd($("scrollProviderBtn"), "click", function(){ scrollToId("#providers"); });
 
   var tabs = document.querySelectorAll(".tab");
   for(var i=0;i<tabs.length;i++){
     (function(btn){
-      btn.addEventListener("click", function(){
+      safeAdd(btn, "click", function(){
         setCategory(btn.getAttribute("data-svc"));
       });
     })(tabs[i]);
   }
 
-  $("service").addEventListener("change", function(){ refreshConditionalFields(); hideQuote(); });
-  $("petOption").addEventListener("change", hideQuote);
-  $("petCount").addEventListener("change", hideQuote);
-  $("county").addEventListener("change", hideQuote);
-  $("zip").addEventListener("input", hideQuote);
-  $("stories").addEventListener("change", hideQuote);
-  $("prep").addEventListener("change", hideQuote);
-  $("needWhen").addEventListener("change", hideQuote);
-  $("serviceLevel").addEventListener("change", hideQuote);
-  $("size").addEventListener("input", hideQuote);
-  $("flooringMaterial").addEventListener("change", hideQuote);
-  $("paintingScope").addEventListener("change", hideQuote);
+  safeAdd($("service"), "change", function(){ refreshConditionalFields(); hideQuote(); });
+  safeAdd($("petOption"), "change", hideQuote);
+  safeAdd($("petCount"), "change", hideQuote);
+  safeAdd($("county"), "change", hideQuote);
+  safeAdd($("zip"), "input", hideQuote);
+  safeAdd($("stories"), "change", hideQuote);
+  safeAdd($("prep"), "change", hideQuote);
+  safeAdd($("needWhen"), "change", hideQuote);
+  safeAdd($("serviceLevel"), "change", hideQuote);
+  safeAdd($("size"), "input", hideQuote);
+  safeAdd($("flooringMaterial"), "change", hideQuote);
+  safeAdd($("paintingScope"), "change", hideQuote);
 
-  $("showBtn").addEventListener("click", function(){
+  safeAdd($("showBtn"), "click", function(){
     var r = calculate();
     if(!r) return;
 
@@ -876,11 +885,10 @@ My question: ");
     var t = typicalBand(r.low, r.high);
     $("typical").innerText = "Most similar jobs land around " + money(t.lo) + " - " + money(t.hi);
 
-    // keep fields (do not clear) - user asked email required; keep what they typed
     $("quoteBox").style.display = "block";
   });
 
-  $("matchBtn").addEventListener("click", function(){
+  safeAdd($("matchBtn"), "click", function(){
     setMatchStatus("", true);
 
     var r = calculate();
@@ -932,35 +940,20 @@ My question: ");
         }
         setMatchStatus(help, false);
 
-        // Fallback: open email draft so the lead is not lost
-        var fallbackBody = "Lead request (fallback)
-" +
-          "Name: " + name + "
-" +
-          "Phone: " + phone + "
-" +
-          "Email: " + email + "
-" +
-          "County: " + r.county + "
-" +
-          "ZIP: " + r.zip + "
-" +
-          "Category: " + r.cat + "
-" +
-          "Service: " + r.subtype + "
-" +
-          (r.flooringMaterial ? ("Flooring material: " + r.flooringMaterial + "
-") : "") +
-          (r.paintingScope ? ("Painting scope: " + r.paintingScope + "
-") : "") +
-          (r.petOption ? ("Pet option: " + r.petOption + "
-") : "") +
-          (r.petCount ? ("Pet count: " + r.petCount + "
-") : "") +
-          "Estimate: " + money(r.low) + " - " + money(r.high) + "
-" +
-          (r.notes ? ("Notes: " + r.notes + "
-") : "");
+        var fallbackBody = "Lead request (fallback)\n" +
+          "Name: " + name + "\n" +
+          "Phone: " + phone + "\n" +
+          "Email: " + email + "\n" +
+          "County: " + r.county + "\n" +
+          "ZIP: " + r.zip + "\n" +
+          "Category: " + r.cat + "\n" +
+          "Service: " + r.subtype + "\n" +
+          (r.flooringMaterial ? ("Flooring material: " + r.flooringMaterial + "\n") : "") +
+          (r.paintingScope ? ("Painting scope: " + r.paintingScope + "\n") : "") +
+          (r.petOption ? ("Pet option: " + r.petOption + "\n") : "") +
+          (r.petCount ? ("Pet count: " + r.petCount + "\n") : "") +
+          "Estimate: " + money(r.low) + " - " + money(r.high) + "\n" +
+          (r.notes ? ("Notes: " + r.notes + "\n") : "");
 
         if(status === 0 || status >= 400){
           openMailto("Lead Request (fallback)", fallbackBody);
@@ -969,12 +962,11 @@ My question: ");
     });
   });
 
-  $("providerApplyBtn").addEventListener("click", providerApply);
+  safeAdd($("providerApplyBtn"), "click", providerApply);
 
   // Download current page as HTML file
-  $("downloadBtn").addEventListener("click", function(){
-    var html = "<!DOCTYPE html>
-" + document.documentElement.outerHTML;
+  safeAdd($("downloadBtn"), "click", function(){
+    var html = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
     var blob = new Blob([html], { type: "text/html;charset=utf-8" });
     var url = URL.createObjectURL(blob);
     var a = document.createElement("a");
@@ -988,20 +980,24 @@ My question: ");
 
   // Init
   refreshMailLinks();
-  $("year").innerText = String(new Date().getFullYear());
-  $("setEmailLink").addEventListener("click", function(e){ e.preventDefault(); setAdminEmail(); });
 
-  // Ensure services populate on load (this fixes the "empty service type" problem)
+  var bt = document.getElementById("buildTag");
+  if(bt) bt.textContent = "Build: 2026-02-04-B";
+
+  safeAdd($("setEmailLink"), "click", function(e){ e.preventDefault(); setAdminEmail(); });
+  $("year").innerText = String(new Date().getFullYear());
+
+  // Populate services on load
   setCategory("cleaning");
 
-  // --- Minimal tests ---
+  // Tests
   (function(){
     try{
-      console.assert(document.getElementById("service").options.length > 0, "[tests] service dropdown should populate on load");
-      console.assert(document.querySelectorAll(".tab").length === 5, "[tests] should have 5 category tabs");
-      // Switching category should populate different options
+      console.assert(!!document.getElementById("service"), "[tests] service select exists");
+      console.assert(document.getElementById("service").options.length > 0, "[tests] service dropdown populates");
+      console.assert(document.querySelectorAll(".tab").length === 5, "[tests] has 5 tabs");
       setCategory("hvac");
-      console.assert(document.getElementById("service").options.length > 0, "[tests] hvac should have service options");
+      console.assert(document.getElementById("service").options.length > 0, "[tests] hvac has options");
       setCategory("cleaning");
     } catch(e){}
   })();
